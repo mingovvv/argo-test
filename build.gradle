@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.4'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.gorylenko.gradle-git-properties' version '2.4.1'  // Git 속성을 생성하는 플러그인
+    id 'com.gorylenko.gradle-git-properties' version '2.4.2' // 최신 버전 확인 권장
 }
 
 group = 'com'
@@ -14,19 +14,28 @@ java {
     }
 }
 
-// Git 속성 설정
+// git-properties 플러그인 설정
 gitProperties {
-    gitPropertiesName = 'git.properties'
-    dateFormat = "yyyy-MM-dd'T'HH:mmZ"
-    dateFormatTimeZone = 'GMT'
-    failOnNoGitDirectory = false  // Git 디렉토리가 없어도 빌드 실패하지 않음
-    keys = [
-            'git.branch',
-            'git.commit.id',
-            'git.commit.id.abbrev',
-            'git.commit.message.short',
-            'git.commit.time'
-    ]
+    dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ" // 날짜 형식 (필요시)
+    // 생성될 git.properties 파일은 기본적으로 build/resources/main/git.properties 에 위치하며,
+    // processResources 태스크에 의해 클래스패스로 복사됩니다. 위치 변경이 필요하면 customProperty 설정 등을 사용하세요.
+
+    // 포함될 속성 커스터마이징 (기본값으로도 충분할 수 있음)
+    // keys = [ // 만약 기본 제공 속성 외에 특정 속성만 포함하고 싶거나 순서를 바꾸고 싶다면 정의
+    //     'git.branch',
+    //     'git.build.time',
+    //     'git.build.user.name',
+    //     'git.build.version',
+    //     'git.commit.id', // 전체 해시
+    //     'git.commit.id.abbrev', // 짧은 해시
+    //     'git.commit.message.full', // 전체 커밋 메시지
+    //     'git.commit.message.short', // 짧은 커밋 메시지
+    //     'git.commit.time',
+    //     'git.commit.user.name',
+    //     'git.dirty', // 워킹 디렉토리 변경사항 유무
+    //     'git.remote.origin.url', // 원격 저장소 URL
+    //     // 'git.tags' // 태그 정보
+    // ]
 }
 
 // Git 속성 생성이 항상 수행되도록 설정
@@ -40,7 +49,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    implementation 'org.eclipse.jgit:org.eclipse.jgit:6.3.0.202209071007-r'  // JGit 라이브러리
 }
 
 tasks.named('test') {
