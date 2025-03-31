@@ -17,14 +17,20 @@ java {
 // Git 속성 설정
 gitProperties {
     gitPropertiesName = 'git.properties'
+    dateFormat = "yyyy-MM-dd'T'HH:mmZ"
+    dateFormatTimeZone = 'GMT'
+    failOnNoGitDirectory = false  // Git 디렉토리가 없어도 빌드 실패하지 않음
     keys = [
             'git.branch',
+            'git.commit.id',
             'git.commit.id.abbrev',
             'git.commit.message.short',
             'git.commit.time'
     ]
 }
 
+// Git 속성 생성이 항상 수행되도록 설정
+tasks.classes.dependsOn('generateGitProperties')
 
 repositories {
     mavenCentral()
