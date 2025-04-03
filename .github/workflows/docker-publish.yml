@@ -5,8 +5,8 @@ name: Docker Build and Push to GHCR
 on:
   push:
     branches: [ "master" ] # master 브랜치에 푸시될 때 실행 (트리거 조건 변경 가능: 예: 태그 생성 시)
-    # tags:
-    #   - 'v*.*.*' # v 로 시작하는 태그가 푸시될 때 실행
+    tags:
+      - 'v*.*.*' # v 로 시작하는 태그가 푸시될 때 실행
   workflow_dispatch: # 수동 실행 가능
 
 # 환경 변수 설정 (GHCR 주소 및 이미지 이름)
