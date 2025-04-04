@@ -1,6 +1,6 @@
 # .github/workflows/docker-publish.yml
 
-name: Docker Build and Push to GHCR
+name: Docker Build, Push, and Update Helm Values
 
 on:
   push:
@@ -14,6 +14,7 @@ env:
   REGISTRY: ghcr.io
   # 이미지 이름: ghcr.io/소유자/저장소이름 형식 (소문자여야 함)
   IMAGE_NAME: ${{ github.repository }} # 예: ghcr.io/your-username/your-repo
+  HELM_VALUES_PATH: charts/show-git/values.yaml
 
 jobs:
   build-and-push:
@@ -99,3 +100,19 @@ jobs:
           # Docker 빌드 캐시 사용 (선택 사항, 속도 향상)
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # 10. 헴름차트 업데이트
+      - name: Update Helm values.yaml with new image tag
+        run: |
+          TAG="${{ steps.meta.outputs.version }}"
+          echo "Using tag: $TAG"
+          sed -i "s/^\( *tag: \).*$/\1$TAG/" ${{ env.HELM_VALUES_PATH }}
+
+      # 11. 헴름차트 커밋
+      - name: Commit and push updated values.yaml
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add ${{ env.HELM_VALUES_PATH }}
+          git commit -m "ci: update image tag to ${{ steps.meta.outputs.version }}"
+          git push
