@@ -14,7 +14,8 @@ env:
   REGISTRY: ghcr.io
   # 이미지 이름: ghcr.io/소유자/저장소이름 형식 (소문자여야 함)
   IMAGE_NAME: ${{ github.repository }} # 예: ghcr.io/your-username/your-repo
-  HELM_VALUES_PATH: charts/show-git/values.yaml
+  HELM_REPO: mingovvv/helm-charts
+  HELM_REPO_PATH: helm-charts/charts/show-git/values.yaml
 
 jobs:
   build-and-push:
@@ -26,10 +27,17 @@ jobs:
 
     steps:
       # 1. 소스 코드 체크아웃 (Git 정보 위해 전체 히스토리 가져오기)
-      - name: Checkout repository
+      - name: Checkout service repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # gradle-git-properties 플러그인이 Git 정보 제대로 읽도록 함
+
+      - name: Checkout Helm Chart repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HELM_REPO }}
+          token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          path: helm-charts
 
       # 2. JDK 17 설정
       - name: Set up JDK 21
@@ -106,13 +114,14 @@ jobs:
         run: |
           TAG="${{ steps.meta.outputs.version }}"
           echo "Using tag: $TAG"
-          sed -i "s/^\( *tag: \).*$/\1$TAG/" ${{ env.HELM_VALUES_PATH }}
+          sed -i "s/^\( *tag: \).*$/\1$TAG/" ${{ env.HELM_REPO_PATH }}
 
       # 11. 헴름차트 커밋
-      - name: Commit and push updated values.yaml
+      - name: Commit and push updated values.yaml to Helm Chart repo
         run: |
+          cd helm-charts
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add ${{ env.HELM_VALUES_PATH }}
+          git add ${{ env.HELM_REPO_PATH }}
           git commit -m "ci: update image tag to ${{ steps.meta.outputs.version }}"
           git push
