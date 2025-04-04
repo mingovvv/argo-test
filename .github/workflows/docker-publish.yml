@@ -9,22 +9,21 @@ on:
       - 'v*.*.*'             # 버전 태그 푸시 시 실행 (예: v1.0.0)
   workflow_dispatch:         # 수동 실행 허용
 
-# 전역 환경 변수 설정
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}                        # 예: ghcr.io/사용자명/레포명
-  HELM_REPO: mingovvv/helm-charts                            # 헬름 차트 저장소
-  HELM_REPO_CHECKOUT_PATH: helm-charts                      # actions/checkout 시 사용할 경로
-  HELM_CHART_NAME: show-git                                 # 서비스별 헬름 차트 디렉토리 이름
-  HELM_VALUES_FILE: values.yaml                             # values.yaml 파일 이름
-  HELM_VALUES_PATH: ${{ env.HELM_REPO_CHECKOUT_PATH }}/charts/${{ env.HELM_CHART_NAME }}/${{ env.HELM_VALUES_FILE }}
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}                        # 예: ghcr.io/사용자명/레포명
+      HELM_REPO: mingovvv/helm-charts                            # 헬름 차트 저장소
+      HELM_REPO_CHECKOUT_PATH: helm-charts                      # actions/checkout 시 사용할 경로
+      HELM_CHART_NAME: show-git                                 # 서비스별 헬름 차트 디렉토리 이름
+      HELM_VALUES_FILE: values.yaml                             # values.yaml 파일 이름
+      HELM_VALUES_PATH: ${{ github.workspace }}/helm-charts/charts/show-git/values.yaml
 
     steps:
       - name: Checkout service repository
@@ -35,9 +34,9 @@ jobs:
       - name: Checkout Helm Chart repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ env.HELM_REPO }}
+          repository: mingovvv/helm-charts
           token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-          path: ${{ env.HELM_REPO_CHECKOUT_PATH }}
+          path: helm-charts
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -99,11 +98,11 @@ jobs:
         run: |
           TAG="${{ steps.meta.outputs.version }}"
           echo "Using tag: $TAG"
-          sed -i "s/^\( *tag: \).*$/\1$TAG/" ${{ env.HELM_VALUES_PATH }}
+          sed -i "s/^\( *tag: \).*$/\1$TAG/" "${{ env.HELM_VALUES_PATH }}"
 
       - name: Commit and push updated values.yaml to Helm Chart repo
         run: |
-          cd ${{ env.HELM_REPO_CHECKOUT_PATH }}
+          cd helm-charts
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add charts/${{ env.HELM_CHART_NAME }}/${{ env.HELM_VALUES_FILE }}
