@@ -96,7 +96,7 @@ jobs:
 
       - name: Update Helm values.yaml with new image tag
         run: |
-          TAG="${{ steps.meta.outputs.version_sha_short }}"
+          TAG="${{ version_sha_short }}"
           echo "Using tag: $TAG"
           sed -i "s/^\( *tag: \).*$/\1$TAG/" "${{ env.HELM_VALUES_PATH }}"
 
@@ -106,5 +106,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add charts/${{ env.HELM_CHART_NAME }}/${{ env.HELM_VALUES_FILE }}
-          git commit -m "ci: update image tag to ${{ steps.meta.outputs.version }}"
+          git commit -m "ci: update image tag to ${{ version_sha_short }}"
           git push
