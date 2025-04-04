@@ -4,49 +4,47 @@ name: Docker Build, Push, and Update Helm Values
 
 on:
   push:
-    branches: [ "master" ] # master 브랜치에 푸시될 때 실행 (트리거 조건 변경 가능: 예: 태그 생성 시)
+    branches: [ "master" ] # master 브랜치에 푸시될 때 실행
     tags:
-      - 'v*.*.*' # v 로 시작하는 태그가 푸시될 때 실행
-  workflow_dispatch: # 수동 실행 가능
+      - 'v*.*.*'             # 버전 태그 푸시 시 실행 (예: v1.0.0)
+  workflow_dispatch:         # 수동 실행 허용
 
-# 환경 변수 설정 (GHCR 주소 및 이미지 이름)
+# 전역 환경 변수 설정
 env:
   REGISTRY: ghcr.io
-  # 이미지 이름: ghcr.io/소유자/저장소이름 형식 (소문자여야 함)
-  IMAGE_NAME: ${{ github.repository }} # 예: ghcr.io/your-username/your-repo
-  HELM_REPO: mingovvv/helm-charts
-  HELM_REPO_PATH: helm-charts/charts/show-git/values.yaml
+  IMAGE_NAME: ${{ github.repository }}                        # 예: ghcr.io/사용자명/레포명
+  HELM_REPO: mingovvv/helm-charts                            # 헬름 차트 저장소
+  HELM_REPO_CHECKOUT_PATH: helm-charts                      # actions/checkout 시 사용할 경로
+  HELM_CHART_NAME: show-git                                 # 서비스별 헬름 차트 디렉토리 이름
+  HELM_VALUES_FILE: values.yaml                             # values.yaml 파일 이름
+  HELM_VALUES_PATH: ${{ env.HELM_REPO_CHECKOUT_PATH }}/charts/${{ env.HELM_CHART_NAME }}/${{ env.HELM_VALUES_FILE }}
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    # GHCR에 푸시하기 위한 권한 설정
     permissions:
-      contents: read      # actions/checkout 사용 위함
-      packages: write     # ghcr.io 에 푸시하기 위함
+      contents: write
+      packages: write
 
     steps:
-      # 1. 소스 코드 체크아웃 (Git 정보 위해 전체 히스토리 가져오기)
       - name: Checkout service repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # gradle-git-properties 플러그인이 Git 정보 제대로 읽도록 함
+          fetch-depth: 0
 
       - name: Checkout Helm Chart repository
         uses: actions/checkout@v4
         with:
           repository: ${{ env.HELM_REPO }}
           token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-          path: helm-charts
+          path: ${{ env.HELM_REPO_CHECKOUT_PATH }}
 
-      # 2. JDK 17 설정
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      # 3. Gradle 캐시 설정
       - name: Setup Gradle Cache
         uses: actions/cache@v4
         with:
@@ -57,71 +55,57 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # 4. gradlew 실행 권한 부여
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      # 5. Gradle 빌드 실행 (JAR 생성 및 git.properties 포함)
-      #    bootJar 태스크가 의존성 포함된 실행 가능한 JAR을 만듭니다.
       - name: Build with Gradle
-        run: ./gradlew bootJar --info # bootJar 태스크 실행
+        run: ./gradlew bootJar --info
 
-      # 6. Docker 메타데이터 추출 (이미지 태그 생성 등)
-      #    이 액션은 Git 브랜치, 태그, SHA 등을 기반으로 유용한 태그와 레이블을 생성합니다.
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # main 브랜치 푸시 시 latest 태그 생성
             type=raw,value=latest,enable={{is_default_branch}}
-            # Git 태그 푸시 시 해당 태그 사용 (예: v1.0.0)
             type=ref,event=tag
-            # Git 커밋 SHA 를 태그로 사용 (짧은 버전)
             type=sha,prefix=,suffix=,format=short
 
-      # 7. Docker Buildx 설정 (Docker 빌드 환경 개선)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 8. GitHub Container Registry (GHCR) 로그인
-      #    GITHUB_TOKEN 은 자동으로 생성되며 필요한 권한(packages: write)을 가집니다.
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }} # 워크플로우를 실행하는 사용자/액터
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 9. Docker 이미지 빌드 및 GHCR에 푸시
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: . # Dockerfile 이 있는 경로 (프로젝트 루트)
-          file: ./Dockerfile # 사용할 Dockerfile 경로
-          push: true # 빌드 후 푸시 실행
-          tags: ${{ steps.meta.outputs.tags }} # metadata-action 에서 생성된 태그 사용
-          labels: ${{ steps.meta.outputs.labels }} # metadata-action 에서 생성된 레이블 사용
-          # Docker 빌드 캐시 사용 (선택 사항, 속도 향상)
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # 10. 헴름차트 업데이트
       - name: Update Helm values.yaml with new image tag
         run: |
           TAG="${{ steps.meta.outputs.version }}"
           echo "Using tag: $TAG"
-          sed -i "s/^\( *tag: \).*$/\1$TAG/" ${{ env.HELM_REPO_PATH }}
+          sed -i "s/^\( *tag: \).*$/\1$TAG/" ${{ env.HELM_VALUES_PATH }}
 
-      # 11. 헴름차트 커밋
       - name: Commit and push updated values.yaml to Helm Chart repo
         run: |
-          cd helm-charts
+          cd ${{ env.HELM_REPO_CHECKOUT_PATH }}
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add charts/show-git/values.yaml     # ✅ 경로 수정
+          git add charts/${{ env.HELM_CHART_NAME }}/${{ env.HELM_VALUES_FILE }}
           git commit -m "ci: update image tag to ${{ steps.meta.outputs.version }}"
           git push
