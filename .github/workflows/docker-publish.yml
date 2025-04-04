@@ -112,3 +112,4 @@ jobs:
           git add charts/${{ env.HELM_CHART_NAME }}/${{ env.HELM_VALUES_FILE }}
           git commit -m "ci: update image tag to ${{ steps.sha.outputs.short_sha }}"
           git push
+
