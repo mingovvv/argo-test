@@ -122,6 +122,6 @@ jobs:
           cd helm-charts
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add ${{ env.HELM_REPO_PATH }}
+          git add charts/show-git/values.yaml     # ✅ 경로 수정
           git commit -m "ci: update image tag to ${{ steps.meta.outputs.version }}"
           git push
